@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+environment_id="ruby-2.2.3@marionette"
+
+if [[ -d "${rvm_path:-$HOME/.rvm}/environments"
+  && -s "${rvm_path:-$HOME/.rvm}/environments/$environment_id" ]]
+then
+  \. "${rvm_path:-$HOME/.rvm}/environments/$environment_id"
+  for __hook in "${rvm_path:-$HOME/.rvm}/hooks/after_use"*
+  do
+    if [[ -f "${__hook}" && -x "${__hook}" && -s "${__hook}" ]]
+    then \. "${__hook}" || true
+    fi
+  done
+  unset __hook
+  if (( ${rvm_use_flag:=1} >= 1 ))
+  then
+    if [[ $- == *i* ]]
+    then printf "%b" "Using: $(tput setaf 2 2>/dev/null)$GEM_HOME$(tput sgr0 2>/dev/null)\n"
+    else printf "%b" "Using: $GEM_HOME\n"
+    fi
+  fi
+else
+  rvm --create use  "$environment_id" || {
+    echo "Failed to create RVM environment '${environment_id}'."
+    return 1
+  }
+fi
+
+if [[ -s Gemfile ]] && {
+  ! builtin command -v bundle >/dev/null ||
+  builtin command -v bundle | GREP_OPTIONS="" \command \grep $rvm_path/bin/bundle >/dev/null
+}
+then
+  printf "%b" "The rubygem 'bundler' is not installed. Installing it now.\n"
+  gem install bundler
+fi
+if [[ -s Gemfile ]] && builtin command -v bundle >/dev/null
+then
+  bundle install | GREP_OPTIONS="" \command \grep -vE '^Using|Your bundle is complete'
+fi
